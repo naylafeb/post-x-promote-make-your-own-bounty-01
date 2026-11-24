@@ -27,11 +27,24 @@ function readFoldersFromEnv(): { botDir: string; outputDir: string } {
   };
 }
 
-function resolvePaths(botDir: string, outputDir: string): JobPaths {
+function resolveSourcePath(botDir: string): string {
+  return resolve(botDir, FILE_NAME);
+}
+
+function resolveDestination(outputDir: string): {
+  destinationPath: string;
+  destinationDir: string;
+} {
   return {
-    sourcePath: resolve(botDir, FILE_NAME),
     destinationPath: resolve(outputDir, FILE_NAME),
     destinationDir: outputDir,
+  };
+}
+
+function resolvePaths(botDir: string, outputDir: string): JobPaths {
+  return {
+    sourcePath: resolveSourcePath(botDir),
+    ...resolveDestination(outputDir),
   };
 }
 
