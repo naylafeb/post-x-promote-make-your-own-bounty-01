@@ -12,22 +12,54 @@
 import { copyFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-const checkoutRoot = process.env.MAKEFUN_BOT_DIR ?? "/bot";
-const handInFolder = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+const FILE_NAME = "POST.json";
 
-async function deliver() {
-  const sourceFile = resolve(checkoutRoot, "POST.json");
-  const targetFile = resolve(handInFolder, "POST.json");
+interface JobPaths {
+  sourcePath: string;
+  destinationPath: string;
+  destinationDir: string;
+}
 
-  await mkdir(handInFolder, { recursive: true });
+function readFoldersFromEnv(): { botDir: string; outputDir: string } {
+  return {
+    botDir: process.env.MAKEFUN_BOT_DIR ?? "/bot",
+    outputDir: process.env.MAKEFUN_OUTPUT_DIR ?? "/output",
+  };
+}
+
+function resolvePaths(botDir: string, outputDir: string): JobPaths {
+  return {
+    sourcePath: resolve(botDir, FILE_NAME),
+    destinationPath: resolve(outputDir, FILE_NAME),
+    destinationDir: outputDir,
+  };
+}
+
+async function ensureOutputDir(destinationDir: string): Promise<void> {
+  await mkdir(destinationDir, { recursive: true });
+}
+
+async function copyPostFile(sourcePath: string, destinationPath: string): Promise<void> {
+  await copyFile(sourcePath, destinationPath);
+}
+
+function describeFailure(error: unknown, paths: JobPaths): string {
+  const reason = error instanceof Error ? error.message : String(error);
+  return `Could not deliver POST.json (${paths.sourcePath} -> ${paths.destinationPath}): ${reason}`;
+}
+
+async function run(): Promise<void> {
+  const { botDir, outputDir } = readFoldersFromEnv();
+  const paths = resolvePaths(botDir, outputDir);
+
+  await ensureOutputDir(paths.destinationDir);
 
   try {
-    await copyFile(sourceFile, targetFile);
-  } catch (problem) {
-    const reason = problem instanceof Error ? problem.message : String(problem);
-    console.error(`Could not deliver POST.json (${sourceFile} -> ${targetFile}): ${reason}`);
+    await copyPostFile(paths.sourcePath, paths.destinationPath);
+  } catch (error) {
+    console.error(describeFailure(error, paths));
     process.exit(1);
   }
 }
 
-await deliver();
+await run();
